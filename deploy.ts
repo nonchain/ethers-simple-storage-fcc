@@ -2,10 +2,20 @@ import { ethers } from "ethers"
 import * as fs from "fs-extra"
 import "dotenv/config"
 
+type SimpleStorageContractType = ethers.BaseContract & {
+  deploymentTransaction(): ethers.ContractTransactionResponse;
+} & Omit<ethers.BaseContract, keyof ethers.BaseContract> & {
+    addPerson(_name: string, _favoriteNumber: ethers.BigNumberish): Promise<void>;
+    nameToFavoriteNumber(_name: string): Promise<ethers.BigNumberish>;
+    people(_index: number): Promise<{ favoriteNumber: ethers.BigNumberish; name: string }>;
+    retrieve(): Promise<ethers.BigNumberish>;
+    store(_favoriteNumber: ethers.BigNumberish): Promise<void>;
+  };
+
 async function main() {
   // First, compile this!
   // And make sure to have your ganache network up!
-  let provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL)
+  const provider = new ethers.JsonRpcProvider(process.env.RPC_URL)
   let wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider)
   const abi = fs.readFileSync("./SimpleStorage_sol_SimpleStorage.abi", "utf8")
   const binary = fs.readFileSync(
@@ -14,17 +24,18 @@ async function main() {
   )
   const contractFactory = new ethers.ContractFactory(abi, binary, wallet)
   console.log("Deploying, please wait...")
-  const contract = await contractFactory.deploy()
+  const contract = (await contractFactory.deploy()) as SimpleStorageContractType
   // const contract = await contractFactory.deploy({ gasPrice: 100000000000 })
-  const deploymentReceipt = await contract.deployTransaction.wait()
+  const deploymentReceipt = await contract.deploymentTransaction()?.wait(1)
   console.log(`Contract deployed to ${contract.address}`)
   // console.log("Here is the transaction:")
   // console.log(contract.deployTransaction)
   // console.log("Here is the receipt:")
   // console.log(transactionReceipt)
 
+  // const nonce = await provider.getTransactionCount(getAddress({ADDRESS_OF_ACCOUNT_IN_GANACHE}));
   // tx = {
-  //   nonce: 10,
+  //   nonce: nonce,
   //   gasPrice: 100000000000,
   //   gasLimit: 1000000,
   //   to: '0x0000000000000000000000000000000000000000',
@@ -36,13 +47,14 @@ async function main() {
   // let resp = await wallet.signTransaction(tx)
   // console.log(resp)
 
-  let currentFavoriteNumber = await contract.retrieve()
-  console.log(`Current Favorite Number: ${currentFavoriteNumber}`)
-  console.log("Updating favorite number...")
-  let transactionResponse = await contract.store(7)
-  let transactionReceipt = await transactionResponse.wait()
-  currentFavoriteNumber = await contract.retrieve()
-  console.log(`New Favorite Number: ${currentFavoriteNumber}`)
+  const currentFavoriteNumber = await contract.retrieve()
+  console.log(`Current Favorite Number is: ${favoriteNumber.toString()}`)
+
+  await contract.store("9")
+  await contract.deploymentTransaction()?.wait(1)
+
+  const updatedFavoriteNumber = await contract.retrieve()
+  console.log(`Updated Favorite Number is: ${updatedFavoriteNumber.toString()}`)
 }
 
 main()
